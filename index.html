@@ -1,9 +1,9 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meta AI-like Chatbot</title>
+    <title>Meta AI-like Chatbot (OpenAI)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -100,13 +100,13 @@
         <div class="chat-header">
             <!-- Updated with a new, more reliable placeholder logo -->
             <img src="https://placehold.co/40x40/4f46e5/ffffff?text=AI" alt="Chatbot Logo">
-            Meta AI Chatbot
+            Meta AI Chatbot (OpenAI)
         </div>
         <div class="chat-messages" id="chat-messages">
             <!-- Initial bot message -->
             <div class="message-wrapper bot">
                 <div class="message-avatar bot">🤖</div>
-                <div class="message bot">Hello! I'm your AI assistant. How can I help you today?</div>
+                <div class="message bot">Hello! I'm your OpenAI-powered AI assistant. How can I help you today?</div>
             </div>
         </div>
         <div class="loading-indicator hidden" id="loading-indicator">
@@ -129,8 +129,9 @@
         const sendButton = document.getElementById('send-button');
         const loadingIndicator = document.getElementById('loading-indicator');
 
-        // Initial bot message in chat history
-        let chatHistory = [{ role: "model", parts: [{ text: "Hello! I'm your AI assistant. How can I help you today?" }] }];
+        // Initial bot message in chat history (for OpenAI, roles are 'user', 'assistant', 'system')
+        let chatHistory = [{ role: "system", content: "You are a helpful AI assistant." }];
+        chatHistory.push({ role: "assistant", content: "Hello! I'm your OpenAI-powered AI assistant. How can I help you today?" });
 
         // Function to add a message to the chat interface
         function addMessage(text, sender) {
@@ -173,7 +174,10 @@
                         continue;
                     }
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        // Attempt to parse error message from response body if available
+                        const errorData = await response.json().catch(() => ({}));
+                        const errorMessage = errorData.error?.message || `HTTP error! status: ${response.status}`;
+                        throw new Error(errorMessage);
                     }
                     return response;
                 } catch (error) {
@@ -187,39 +191,53 @@
             }
         }
 
-        // Function to send message to the Gemini API
-        async function sendMessageToGemini(prompt) {
+        // Function to send message to the OpenAI API
+        async function sendMessageToOpenAI(prompt) {
             loadingIndicator.classList.remove('hidden'); // Show loading indicator
             sendButton.disabled = true; // Disable send button
 
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            // Add user message to chat history for OpenAI
+            chatHistory.push({ role: "user", content: prompt });
 
-            const payload = { contents: chatHistory };
-            const apiKey = ""; // Canvas will provide this at runtime
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = {
+                model: "gpt-3.5-turbo", // Or "gpt-4" if you have access
+                messages: chatHistory,
+                temperature: 0.7, // Controls randomness: lower for more focused, higher for more creative
+                max_tokens: 150, // Max tokens for the bot's response
+            };
+
+            // IMPORTANT: You will need a valid OpenAI API Key here.
+            // If running in a Canvas environment that injects API keys, leave it as "".
+            // Otherwise, replace "YOUR_OPENAI_API_KEY" with your actual key.
+            const openAIApiKey = ""; // Canvas will provide this at runtime if configured.
+                                     // If deploying elsewhere, replace with your actual key: "sk-xxxxxxxxxxxxxxxxxxxx"
+
+            const apiUrl = "https://api.openai.com/v1/chat/completions";
 
             try {
                 const response = await fetchWithExponentialBackoff(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openAIApiKey}`
+                    },
                     body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
 
-                if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    const botResponse = result.candidates[0].content.parts[0].text;
+                if (result.choices && result.choices.length > 0 && result.choices[0].message && result.choices[0].message.content) {
+                    const botResponse = result.choices[0].message.content;
                     addMessage(botResponse, 'bot');
-                    chatHistory.push({ role: "model", parts: [{ text: botResponse }] }); // Add bot response to history
+                    // Add bot response to chat history for OpenAI
+                    chatHistory.push({ role: "assistant", content: botResponse });
                 } else {
-                    addMessage("Sorry, I couldn't get a response. Please try again.", 'bot');
-                    console.error("Unexpected API response structure:", result);
+                    addMessage("Sorry, I couldn't get a response from OpenAI. Please try again.", 'bot');
+                    console.error("Unexpected OpenAI API response structure:", result);
                 }
             } catch (error) {
-                addMessage("Oops! Something went wrong. Please check your internet connection or try again later.", 'bot');
-                console.error("Error sending message to Gemini API:", error);
+                addMessage("Oops! Something went wrong with the OpenAI API. Please check your API key or try again later.", 'bot');
+                console.error("Error sending message to OpenAI API:", error);
             } finally {
                 loadingIndicator.classList.add('hidden'); // Hide loading indicator
                 sendButton.disabled = false; // Enable send button
@@ -233,7 +251,7 @@
             const message = userInput.value.trim();
             if (message) {
                 addMessage(message, 'user');
-                sendMessageToGemini(message);
+                sendMessageToOpenAI(message); // Call the OpenAI specific function
             }
         });
 
@@ -245,3 +263,4 @@
         });
     </script>
 </body>
+</html>
