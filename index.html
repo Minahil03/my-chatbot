@@ -96,7 +96,7 @@
         <div class="chat-messages" id="chat-messages">
             <div class="message-wrapper bot">
                 <div class="message-avatar bot">🤖</div>
-                <div class="message bot">Hello! I'm your Gemini-powered AI assistant. How can I help you today?</div>
+                <div class="message bot">Hello! I'm your AI assistant. How can I help you today?</div>
             </div>
         </div>
         <div class="loading-indicator hidden" id="loading-indicator">
@@ -114,10 +114,13 @@
         const sendButton = document.getElementById('send-button');
         const loadingIndicator = document.getElementById('loading-indicator');
 
+        // This is the chat history that will be sent to the Gemini API.
+        // The roles are 'user' and 'model' for the Gemini API.
         let chatHistory = [];
         const initialBotMessage = "Hello! I'm your Gemini-powered AI assistant. How can I help you today?";
         chatHistory.push({ role: "model", parts: [{ text: initialBotMessage }] });
 
+        // Function to add a new message bubble to the chat interface.
         function addMessage(text, sender) {
             const messageWrapper = document.createElement('div');
             messageWrapper.classList.add('message-wrapper', sender);
@@ -135,12 +138,12 @@
                 messageWrapper.appendChild(avatarDiv);
                 messageWrapper.appendChild(messageDiv);
             }
-
             chatMessages.appendChild(messageWrapper);
             setTimeout(() => { messageWrapper.classList.remove('opacity-0'); }, 10);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        // A helper function to handle API calls with exponential backoff for reliability.
         async function fetchWithExponentialBackoff(url, options, retries = 5, delay = 1000) {
             for (let i = 0; i < retries; i++) {
                 try {
@@ -158,14 +161,17 @@
             throw new Error("Failed to fetch after multiple retries.");
         }
 
+        // The main function to send the user's message to the Gemini API and get a response.
         async function sendMessageToGemini(prompt) {
             loadingIndicator.classList.remove('hidden');
             sendButton.disabled = true;
 
+            // Add the new user message to the chat history.
             chatHistory.push({ role: "user", parts: [{ text: prompt }] });
 
             const payload = { contents: chatHistory };
-            const apiKey = "";
+            // The API key is provided automatically by the Canvas environment.
+            const apiKey = ""; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
             try {
@@ -181,6 +187,7 @@
                     result.candidates[0].content.parts.length > 0) {
                     const botResponse = result.candidates[0].content.parts[0].text;
                     addMessage(botResponse, 'bot');
+                    // Add the bot's response to the chat history to maintain context.
                     chatHistory.push({ role: "model", parts: [{ text: botResponse }] });
                 } else {
                     addMessage("Sorry, I couldn't get a response from the Gemini API. Please try again.", 'bot');
@@ -197,6 +204,7 @@
             }
         }
 
+        // Event listener for the 'Send' button click.
         sendButton.addEventListener('click', () => {
             const message = userInput.value.trim();
             if (message) {
@@ -205,6 +213,7 @@
             }
         });
 
+        // Event listener for the 'Enter' key press in the input field.
         userInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 sendButton.click();
@@ -212,5 +221,3 @@
         });
     </script>
 </body>
-</html>
-
